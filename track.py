@@ -14,6 +14,7 @@ import numpy as np
 from pathlib import Path
 import torch
 import torch.backends.cudnn as cudnn
+import result_handler
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # yolov5 strongsort root directory
@@ -78,7 +79,7 @@ def run(
         vid_stride=1,  # video frame-rate stride
         retina_masks=False,
 ):
-
+    
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (VID_FORMATS)
@@ -144,8 +145,16 @@ def run(
     #model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
     seen, windows, dt = 0, [], (Profile(), Profile(), Profile(), Profile())
     curr_frames, prev_frames = [None] * bs, [None] * bs
+    rh = None
     for frame_idx, batch in enumerate(dataset):
         path, im, im0s, vid_cap, s = batch
+        if vid_cap:  # video
+            fps = vid_cap.get(cv2.CAP_PROP_FPS)/vid_stride
+            w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        else:  # stream
+            fps, w, h = 30/vid_stride, im0.shape[1], im0.shape[0]
+        if not rh: rh = result_handler.ResultHandler(im0s.shape[0:2], fps)
         visualize = increment_path(save_dir / Path(path[0]).stem, mkdir=True) if visualize else False
         with dt[0]:
             im = torch.from_numpy(im).to(device)
@@ -166,7 +175,7 @@ def run(
                 proto = preds[1][-1]
             else:
                 p = non_max_suppression(preds, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
-            
+        
         # Process detections
         for i, det in enumerate(p):  # detections per image
             seen += 1
@@ -193,7 +202,7 @@ def run(
             s += '%gx%g ' % im.shape[2:]  # print string
             imc = im0.copy() if save_crop else im0  # for save_crop
 
-            annotator = Annotator(im0, line_width=line_thickness, example=str(names))
+            annotator = Annotator(im0, line_width=line_thickness, example="주차", font_size=30)
             
             if hasattr(tracker_list[i], 'tracker') and hasattr(tracker_list[i].tracker, 'camera_update'):
                 if prev_frames[i] is not None and curr_frames[i] is not None:  # camera motion compensation
@@ -216,7 +225,7 @@ def run(
                 for c in det[:, 5].unique():
                     n = (det[:, 5] == c).sum()  # detections per class
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-
+                
                 # pass detections to strongsort
                 with dt[3]:
                     outputs[i] = tracker_list[i].update(det.cpu(), im0)
@@ -234,9 +243,8 @@ def run(
                         )
                     
                     for j, (output) in enumerate(outputs[i]):
-                        
                         bbox = output[0:4]
-                        id = output[4]
+                        vid = output[4]
                         cls = output[5]
                         conf = output[6]
 
@@ -248,15 +256,18 @@ def run(
                             bbox_h = output[3] - output[1]
                             # Write MOT compliant results to file
                             with open(txt_path + '.txt', 'a') as f:
-                                f.write(('%g ' * 10 + '\n') % (frame_idx + 1, id, bbox_left,  # MOT format
+                                f.write(('%g ' * 10 + '\n') % (frame_idx + 1, vid, bbox_left,  # MOT format
                                                                bbox_top, bbox_w, bbox_h, -1, -1, -1, i))
 
                         if save_vid or save_crop or show_vid:  # Add bbox/seg to image
                             c = int(cls)  # integer class
-                            id = int(id)  # integer id
-                            label = None if hide_labels else (f'{id} {names[c]}' if hide_conf else \
-                                (f'{id} {conf:.2f}' if hide_class else f'{id} {names[c]} {conf:.2f}'))
+                            vid = int(vid)  # integer id
+                            label = None if hide_labels else (f'{vid} {names[c]}' if hide_conf else \
+                                (f'{vid} {conf:.2f}' if hide_class else f'{vid} {names[c]} {conf:.2f}'))
                             color = colors(c, True)
+                            is_event, state = rh.on_event(vid, bbox, cls, conf)
+                            if state: label += f' {state}'
+                            if is_event: color = (0, 0, 255)
                             annotator.box_label(bbox, label, color=color)
                             
                             if save_trajectories and tracking_method == 'strongsort':
@@ -266,9 +277,12 @@ def run(
                                 txt_file_name = txt_file_name if (isinstance(path, list) and len(path) > 1) else ''
                                 save_one_box(np.array(bbox, dtype=np.int16), imc, file=save_dir / 'crops' / txt_file_name / names[c] / f'{id}' / f'{p.stem}.jpg', BGR=True)
                             
+                    annotator.box_label(rh.ROI, '주차 구역', color=(255, 0, 0))
+            
             else:
                 pass
                 #tracker_list[i].tracker.pred_n_update_all_tracks()
+                
                 
             # Stream results
             im0 = annotator.result()
@@ -287,12 +301,6 @@ def run(
                     vid_path[i] = save_path
                     if isinstance(vid_writer[i], cv2.VideoWriter):
                         vid_writer[i].release()  # release previous video writer
-                    if vid_cap:  # video
-                        fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                        w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    else:  # stream
-                        fps, w, h = 30, im0.shape[1], im0.shape[0]
                     save_path = str(Path(save_path).with_suffix('.mp4'))  # force *.mp4 suffix on results videos
                     vid_writer[i] = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
                 vid_writer[i].write(im0)
