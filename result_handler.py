@@ -115,6 +115,9 @@ class ResultHandler():
         if self.ratio_intersect_in_ROI(track.tlbr) > self.parking_threshold["inter"] \
         and track.frames > self.parking_threshold["time"]:
             return "parking"
+        elif self.ratio_intersect_in_ROI(track.tlbr) < self.left_threshold["inter"] \
+        and track.frames > self.left_threshold["time"]:
+            return "left"
         else:
             return "parking_in_progress"
 
