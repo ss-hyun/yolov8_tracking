@@ -10,8 +10,10 @@ class CMCComputer:
     def __init__(self, minimum_features=10, method="sparse"):
         assert method in ["file", "sparse", "sift"]
 
-        os.makedirs("./cache", exist_ok=True)
-        self.cache_path = "./cache/affine_ocsort.pkl"
+        self.cache_root = os.environ.get('CLOUD_CACHE')
+        if self.cache_root is None: self.cache_root = "./cache"
+        os.makedirs(self.cache_root, exist_ok=True)
+        self.cache_path = os.path.join(self.cache_root,"affine_ocsort.pkl")
         self.cache = {}
         if os.path.exists(self.cache_path):
             with open(self.cache_path, "rb") as fp:
@@ -42,25 +44,25 @@ class CMCComputer:
             self.file_names = {}
 
             # All the ablation file names
-            for f_name in os.listdir("./cache/cmc_files/MOT17_ablation/"):
+            for f_name in os.listdir(os.path.join(self.cache_root, "cmc_files/MOT17_ablation/")):
                 # The tag that'll be passed into compute_affine based on image name
                 tag = f_name.replace("GMC-", "").replace(".txt", "") + "-FRCNN"
-                f_name = os.path.join("./cache/cmc_files/MOT17_ablation/", f_name)
+                f_name = os.path.join(os.path.join(self.cache_root, "cmc_files/MOT17_ablation/"), f_name)
                 self.file_names[tag] = f_name
-            for f_name in os.listdir("./cache/cmc_files/MOT20_ablation/"):
+            for f_name in os.listdir(os.path.join(self.cache_root, "cmc_files/MOT20_ablation/")):
                 tag = f_name.replace("GMC-", "").replace(".txt", "")
-                f_name = os.path.join("./cache/cmc_files/MOT20_ablation/", f_name)
+                f_name = os.path.join(os.path.join(self.cache_root, "cmc_files/MOT20_ablation/"), f_name)
                 self.file_names[tag] = f_name
 
             # All the test file names
-            for f_name in os.listdir("./cache/cmc_files/MOTChallenge/"):
+            for f_name in os.listdir(os.path.join(self.cache_root,"cmc_files/MOTChallenge/")):
                 tag = f_name.replace("GMC-", "").replace(".txt", "")
                 if "MOT17" in tag:
                     tag = tag + "-FRCNN"
                 # If it's an ablation one (not test) don't overwrite it
                 if tag in self.file_names:
                     continue
-                f_name = os.path.join("./cache/cmc_files/MOTChallenge/", f_name)
+                f_name = os.path.join(os.path.join(self.cache_root, "cmc_files/MOTChallenge/", f_name))
                 self.file_names[tag] = f_name
 
     def compute_affine(self, img, bbox, tag):

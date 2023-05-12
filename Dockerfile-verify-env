@@ -1,0 +1,5 @@
+FROM yolov8
+
+COPY requirements.txt /mnt/
+
+RUN pip install -r /mnt/requirements.txt

@@ -1,0 +1,32 @@
+version: '3'
+
+name: "parking_system"
+
+services:
+  yolo8_tracking:
+    build:
+      context: .
+      dockerfile: Dockerfile-verify-env
+    #privileged: true
+    volumes:
+      - $HOME:/root
+      # - home:/root
+      - ${CODE_PATH:-/home/sshyun/cloud-ml-template/projects/yolov8_tracking}:/app/codes:ro
+      - ${DATA_PATH:-/home/jupyter/kiml-storage/datasets/}:/app/input/dataset:ro
+      - ${MODEL_PATH:-/home/jupyter/kiml-storage/models/}:/app/input/models:ro
+      - ${OUTPUT_PATH:-/home/sshyun/cloud-ml-template/projects/yolov8_tracking/runs}:/app/output
+      - /tmp:/tmp
+    environment:
+      - CLOUD_CACHE=/app/output/__pycache__
+      - TORCH_HOME=/app/output/__pycache__
+      - XDG_CACHE_HOME=/app/output/__pycache__
+    read_only: true
+    working_dir: /app/codes
+    command:
+      - /root/.local/bin/code # wget in Dockerfile
+      - tunnel
+      - --verbose
+      # - sleep
+      # - infinity
+
+    
