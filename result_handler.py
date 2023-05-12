@@ -121,21 +121,6 @@ class ResultHandler():
         
         #_thread.start_new_thread(self.print_state,())
 
-
-    # bbox가 ROI에 겹치는 영역의 비율
-    def ratio_intersect_in_ROI(self, bbox):
-        ROI = self.ROI
-        xA = max(bbox[0], ROI[0])
-        yA = max(bbox[1], ROI[1])
-        xB = min(bbox[2], ROI[2])
-        yB = min(bbox[3], ROI[3])
-
-        # compute the area of intersection rectangle
-        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-        bboxArea = max(0, bbox[2] - bbox[0] + 1) * max(0, bbox[3] - bbox[1] + 1)
-        return (interArea * 100) / bboxArea
-
-
     def print_state(self):
         time.sleep(5)
         #_thread.start_new_thread(self.print_state,())
