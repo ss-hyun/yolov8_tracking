@@ -8,7 +8,8 @@ from boxmot.utils import logger as LOGGER
 __model_types = [
     'resnet50', 'mlfn', 'hacnn', 'mobilenetv2_x1_0', 'mobilenetv2_x1_4',
     'osnet_x1_0', 'osnet_x0_75', 'osnet_x0_5', 'osnet_x0_25',
-    'osnet_ibn_x1_0', 'osnet_ain_x1_0', 'lmbn_n']
+    'osnet_ibn_x1_0', 'osnet_ain_x1_0', 'lmbn_n',
+    'fast_reid_R50_IBN']
 
 __trained_urls = {
 
@@ -202,6 +203,8 @@ def load_pretrained_weights(model, weight_path):
 
     if 'lmbn' in str(weight_path):
         model.load_state_dict(model_dict, strict=True)
+    elif 'fast_reid' in str(weight_path):
+        pass
     else:
         new_state_dict = OrderedDict()
         matched_layers, discarded_layers = [], []
