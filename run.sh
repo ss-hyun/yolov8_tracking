@@ -13,10 +13,13 @@ function run() {
         --project $OUTPUT_DIR \
         --source "$1" \
         --vid-stride 5 \
-        --agnostic-nms \
-        --save-vid \
-        --save-txt \
-        --save-conf
+        --imgsz 1280 \
+        --save
+       #  --name $YOLO_NAME \
+       #  --agnostic-nms \
+       #  --save-vid \
+       #  --save-txt \
+       #  --save-conf
 }
 
 for (( i=1; i<2; i++ )) do
